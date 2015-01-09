@@ -25,7 +25,7 @@ fn decode(hex_input:&str, words_fp:&str) {
 		};
 		if valid_str != "ignore" {
 			'outer: for word in valid_str.words() { //need to break this loop if word found, lebeled "outer" for break
-				for check_word in word_vec.iter() {
+				for check_word in word_vec.iter() { //loop through english words
 					if word.as_slice() == check_word.as_slice().slice_to(check_word.len() - 1) { //check_word has newline at end
 						println!("{}", valid_str); //print a result that has some word that exists in word_vec
 						break 'outer;
