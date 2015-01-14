@@ -1,3 +1,5 @@
+//Finally have a full, somewhat generalized solution!
+
 extern crate serialize;
 use serialize::base64::FromBase64;
 use std::num::Int;
@@ -111,19 +113,24 @@ fn flatten(bytes_vec:Vec<Vec<u8>>) -> Vec<u8> {
 // new method of checking bytes for validity - count number of bytes in vector that are
 // numbers 32-126, based on http://web.cs.mun.ca/~michael/c/ascii-table.html
 // these are all actual characters, 32 is a space, and 10 is a newline
+// revision: count+2 for letter, count+1 for other valid characters
+// revision 2: count+3 for letters, count+2 for a space, count+1 for other valid characters
+// revision 2 works!
 fn valid_bytes(byte_vec:Vec<u8>) -> uint {
 	let mut count_valid = 0u;
 	for byte in byte_vec.iter() {
-		if ( (*byte>=32) || (*byte == 10) ) && (*byte != 127) { count_valid += 1; }
+		if ( (*byte>=65)&&(*byte<=90) ) || ( (*byte>=97)&&(*byte<=122) ) { count_valid+=3; }
+		else if *byte==32 { count_valid+=2; }
+		else if (*byte>=32) && (*byte!=127) { count_valid+=1; }
 	}
 	count_valid
 }
 
-fn solve_keysize(input:&str, keysize:uint) {
+fn solve_keysize(input:&str, keysize:uint) -> (String, String) {
 	let bytes_vec = transpose_to_bytes(input, keysize);
 	let mut best_bytes_vec:Vec<Vec<u8>> = Vec::new();
 	let mut best_keys:Vec<u8> = Vec::new();
-	println!("Solving for keysize {}", keysize);
+	//println!("Solving for keysize {}", keysize);
 	for i in range(0u, keysize) {
 		let mut max_valid_bytes = 0u;
 		let mut best_key = 0u8;
@@ -138,97 +145,113 @@ fn solve_keysize(input:&str, keysize:uint) {
 		best_keys.push(best_key);
 		best_bytes_vec.push(bytes_vec[i].iter().map(|byte| {*byte^best_key} ).collect());
 	}
-	println!("{}", String::from_utf8(flatten(best_bytes_vec)).unwrap());
+	let return_key = String::from_utf8(best_keys).unwrap();
+	let return_decode = String::from_utf8(flatten(best_bytes_vec)).unwrap();
+	(return_key, return_decode)
 }
 
+fn solve(input_str:&str) -> (String, String) {
+	let min_dists = get_min_dists(input_str.as_slice(), 40u, 40);
+	println!("checking order: {}", min_dists)
+	let mut answer:(String, String) = ("blah".to_string(), "blah".to_string());
+	let mut max_valid_count = 0u;
+	for dist in min_dists.iter() {
+		let result = solve_keysize(input_str, *dist);
+		let result_valid_count = valid_bytes(result.clone().1.into_bytes());
+		if result_valid_count > max_valid_count {
+			max_valid_count = result_valid_count;
+			answer = result;
+		}
+	}
+	answer
+}
 
 fn main() {
 	let data = get_encrypted_string("src/S1C6.txt".as_slice());
 	let input_str = String::from_utf8(data.as_slice().from_base64().unwrap()).unwrap();
-	let min_dists = get_min_dists(input_str.as_slice(), 40u, 40);
-	println!("{}", min_dists);
-	for dist in min_dists.iter() {
-		solve_keysize(input_str.as_slice(), *dist);
-	}
-	/*So close! at keysize 29:
-	I'm back an> I'xiringik' the bell
-A roc1in'5&n the%mike while the fl# gig%s yeli
-In ecstasy in t2e bt*k of he
-Well that's myzDJ Q,shay futtin' all them Z}s
-] ttin'%hard and the girl3es r&in' cwazy
-Vanilla's onzthe5$ike, han I'm not lazy. P
-I'xilettik' my drug kick inz
-It5*ontrois my mouth and I 8egi{i
-To jpst let it flow, l?t mliconceuts go
-My posse'szto a!e sid` yellin', Go Vani6la R&!
-
-Shooth 'cause that') thpiway I%will be
-And if y5u dz''t gise a damn, then
-W2y yz< starln' at me
-So get 5ff 2*ause L control the stag?
-T},re's ko dissin' allowedz
-I'xiin my%own phase
-The gi(liefisa y qhey love me and t2at |: ok
-Dnd I can dance be.ter5=han aky kid n' play
-
-S.age5{ -- Y`a the one ya' wan4a l|:ten tj
-It's off my hea> so5%et th` beat play throug2
-SziI can%funk it up and ma1e iaisound%good
-1-2-3 Yo --zKnov" on sjme wood
-For goodzluc~e I line my rhymes atroc3ous5CSuperfalafragilisticexp3aliq&cious%
-I'm an effect an> tht= you fan bet
-I can tak? a s%y giri and make her wett
-
-\nm lik` Samson -- Samsonzto Q,lilah%
-There's no denyi4', L&u can%try to hang
-But #ou'y% keep%tryin' to get my )tylpi
-Over%and over, practic? ma~,s percect
-But not if y5u'rpia loacer.
-
-You'll get 4owhp;e, no%place, no time, n5 gig%s
-Sojn -- Oh my God, h5mebz-y, yop probably eat
-Sp;ghea=i witm a spoon! Come onzand5:ay it$
-
-VIP. Vanilla I9e yp9, yep) I'm comin' hard 6ike5( rhinj
-Intoxicating sozyou5:taggew like a wino
-So *unkfistop qrying and girl st5p cg0in'
-Sanilla Ice is sel6in'5(nd yop people are buyin}
-'V(use wmy the freaks are 0ock|'' lik` Crazy Glue
-Movi4' a{- groosin' trying to sin= alz'g
-Ali through the ghet.o gg&ovin'%this here song
-N5w yz<'re ahazed by the VIP p5sse;i
-
-Steupin' so hard likeza Gp;man Ndzi
-Startled by t2e bt:es hiqtin' ground
-Ther?'s {& tripuin' on mine, I'm 0ust5.ettin" down
-Sparkamati9, I2$ hangln' tight like a f;nat|*
-You%trapped me once a4d I5=houghq that
-You might 2ave5 t
-So%step down and len> me50our edr
-'89 in my time{ Yo`e '90 ls my year.
-
-You'(e wp(kenin" fast, YO! and I 9an a,ll it%
-Your body's gett3n' }&t, so) so I can smell i.
-Szidon't%be mad and don't 8e st-
-'Capse the lyrics bel5ng a& ICE,%You can call me D;d
-L&u're uitchin' a fit, sozsteeiback dnd endure
-Let th? wia*h docqor, Ice, do the d;nce5=o cur`
-So come up clos? anqidon't%be square
-You wa4na w(ttle he -- Anytime, any-herpi
-
-You%thought that I wa) wet", Boy) you're dead wron=
-Szicome jn, everybody and )ing5=his sjng
-
-Say -- Play .hat5/unky husic Say, go whit? bole go wmite boy go
-play .hat5/unky husic Go white boyv go5>hite goy, go
-Lay down ;nd w&ogie dnd play that funk# muf c tili you die.
-
-Play .hat5/unky husic Come on, Com? on9ilet m` hear
-Play that <unklimusic%white boy you sayzit,5:ay it%
-Play that funky 7usiviA litqle louder now
-Pl;y t}(t funny music, white bo# Cox, on, Fome on, Come on
-
-lay5=hat fpnky music 
-	 */
-
+	let answer = solve(input_str.as_slice());
+	println!("Key: {}", answer.0);
+	println!("Decoded:\n{}", answer.1);
 }
+/*Key: Terminator X: Bring the noise
+Decoded:
+I'm back and I'm ringin' the bell
+A rockin' on the mike while the fly girls yell
+In ecstasy in the back of me
+Well that's my DJ Deshay cuttin' all them Z's
+Hittin' hard and the girlies goin' crazy
+Vanilla's on the mike, man I'm not lazy.
+
+I'm lettin' my drug kick in
+It controls my mouth and I begin
+To just let it flow, let my concepts go
+My posse's to the side yellin', Go Vanilla Go!
+
+Smooth 'cause that's the way I will be
+And if you don't give a damn, then
+Why you starin' at me
+So get off 'cause I control the stage
+There's no dissin' allowed
+I'm in my own phase
+The girlies sa y they love me and that is ok
+And I can dance better than any kid n' play
+
+Stage 2 -- Yea the one ya' wanna listen to
+It's off my head so let the beat play through
+So I can funk it up and make it sound good
+1-2-3 Yo -- Knock on some wood
+For good luck, I like my rhymes atrocious
+Supercalafragilisticexpialidocious
+I'm an effect and that you can bet
+I can take a fly girl and make her wet.
+
+I'm like Samson -- Samson to Delilah
+There's no denyin', You can try to hang
+But you'll keep tryin' to get my style
+Over and over, practice makes perfect
+But not if you're a loafer.
+
+You'll get nowhere, no place, no time, no girls
+Soon -- Oh my God, homebody, you probably eat
+Spaghetti with a spoon! Come on and say it!
+
+VIP. Vanilla Ice yep, yep, I'm comin' hard like a rhino
+Intoxicating so you stagger like a wino
+So punks stop trying and girl stop cryin'
+Vanilla Ice is sellin' and you people are buyin'
+'Cause why the freaks are jockin' like Crazy Glue
+Movin' and groovin' trying to sing along
+All through the ghetto groovin' this here song
+Now you're amazed by the VIP posse.
+
+Steppin' so hard like a German Nazi
+Startled by the bases hittin' ground
+There's no trippin' on mine, I'm just gettin' down
+Sparkamatic, I'm hangin' tight like a fanatic
+You trapped me once and I thought that
+You might have it
+So step down and lend me your ear
+'89 in my time! You, '90 is my year.
+
+You're weakenin' fast, YO! and I can tell it
+Your body's gettin' hot, so, so I can smell it
+So don't be mad and don't be sad
+'Cause the lyrics belong to ICE, You can call me Dad
+You're pitchin' a fit, so step back and endure
+Let the witch doctor, Ice, do the dance to cure
+So come up close and don't be square
+You wanna battle me -- Anytime, anywhere
+
+You thought that I was weak, Boy, you're dead wrong
+So come on, everybody and sing this song
+
+Say -- Play that funky music Say, go white boy, go white boy go
+play that funky music Go white boy, go white boy, go
+Lay down and boogie and play that funky music till you die.
+
+Play that funky music Come on, Come on, let me hear
+Play that funky music white boy you say it, say it
+Play that funky music A little louder now
+Play that funky music, white boy Come on, Come on, Come on
+Play that funky music */
+
