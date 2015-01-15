@@ -1,6 +1,7 @@
 //Finally have a full, somewhat generalized solution!
+//updated to the nightly build, now half of my code is unstable.
 
-extern crate serialize;
+extern crate "rustc-serialize" as serialize;
 use serialize::base64::FromBase64;
 use std::num::Int;
 use std::io::BufferedReader;
@@ -13,31 +14,30 @@ fn get_encrypted_string(fp:&str) -> String {
 	let str_w_newlines:Vec<String> = file.lines().map(|x| x.unwrap()).collect();
 	let mut str_base64:String = String::new();
 	for str in str_w_newlines.iter() {
-		str_base64.push_str(str.as_slice()
-								.slice_to(str.as_slice().len()-1)); //Do we need newlines?
+		str_base64.push_str(&str.as_slice()[0..str.as_slice().len()-1]);
 	}
 	str_base64
 }
 
 // 2: function to compute Hamming distance
-fn hamming_distance(str1:&str, str2:&str) -> uint {
+fn hamming_distance(str1:&str, str2:&str) -> usize {
 	let bytes1 = str1.as_bytes();
 	let bytes2 = str2.as_bytes();
 	//println!("{}", bytes1);
 	//println!("{}", bytes2);
-	let bytes_xor:uint = bytes1.iter()
+	let bytes_xor:usize = bytes1.iter()
 								.zip(bytes2.iter())
 								.map(| (b1, b2) | { *b1^*b2 })
-								.fold(0u, |acc, x| { acc + x.count_ones() });
+								.fold(0us, |acc, x| { acc + x.count_ones() });
 								//.collect();
 	bytes_xor
 }
 
 // 3&4: calculate normalized hamming distances, return lowest few
-fn get_min_dists(input:&str, max_key:uint, return_num:uint) -> Vec<uint> {
+fn get_min_dists(input:&str, max_key:usize, return_num:usize) -> Vec<usize> {
 
 	//results will be a vector of (norm_dist, keysize) to relate each keysize with its respective norm_dist
-	let mut results:Vec<(f64, uint)> = Vec::new();
+	let mut results:Vec<(f64, usize)> = Vec::new();
 
 	//all_sizes is a vector of all norm_dists that are calculated,
 	//will be sorted to get the top return_num norm_dist's
@@ -47,9 +47,9 @@ fn get_min_dists(input:&str, max_key:uint, return_num:uint) -> Vec<uint> {
 
 	//for each keysize, get the first string of length keysize and then the next string
 	//of length keysize, then calculate norm_dist and store the results using results and all_sizes
-	for keysize in range(2u, max_key+1) {
-		let str1 = input.slice(0u, keysize);
-		let str2 = input.slice(keysize, keysize*2);
+	for keysize in range(2us, max_key+1) {
+		let str1 = &input[0us..keysize];
+		let str2 = &input[keysize..keysize*2];
 		let norm_dist = (hamming_distance(str1, str2) as f64)/(keysize as f64);
 		//println!("keysize: {}, dist: {}, norm_dist: {}", keysize, norm_dist*(keysize as f64), norm_dist);
 		results.push( (norm_dist, keysize) );
@@ -61,8 +61,8 @@ fn get_min_dists(input:&str, max_key:uint, return_num:uint) -> Vec<uint> {
 
 	//best_sizes will hold the top return_num norm_dist's
 	//pair.val0() is the norm_dist, and pair.val1() is the keysize
-	let mut best_sizes:Vec<uint> = Vec::new();
-	for i in range(0u, return_num) {
+	let mut best_sizes:Vec<usize> = Vec::new();
+	for i in range(0us, return_num) {
 		for pair in results.iter() {
 			if pair.0 == all_sizes[i] {
 				best_sizes.push(pair.1);
@@ -78,17 +78,17 @@ fn get_min_dists(input:&str, max_key:uint, return_num:uint) -> Vec<uint> {
 }
 
 // 5&6 : break the input down into bytes and transpose into a vector of vectors
-fn transpose_to_bytes(input:&str, keysize:uint) -> Vec<Vec<u8>> {
+fn transpose_to_bytes(input:&str, keysize:usize) -> Vec<Vec<u8>> {
 	let input_bytes = input.to_string().into_bytes();
 	let mut bytes_vec:Vec<Vec<u8>> = Vec::new();
 
 	// make vector of length keysize, with vector elements
-	for _ in range(0u, keysize) {
+	for _ in range(0us, keysize) {
 		bytes_vec.push(Vec::new());
 	}
 
 	//loop though the bytes and place them in the appropriate vector in bytes_vec
-	let mut i = 0u;
+	let mut i = 0us;
 	for byte in input_bytes.iter() {
 		bytes_vec[i].push(*byte);
 		if i == (keysize-1) { i = 0; }
@@ -100,8 +100,8 @@ fn transpose_to_bytes(input:&str, keysize:uint) -> Vec<Vec<u8>> {
 //gotta reverse the transpose
 fn flatten(bytes_vec:Vec<Vec<u8>>) -> Vec<u8> {
 	let mut vec1d:Vec<u8> = Vec::new();
-	for row in range(0u, bytes_vec[0].len()) {
-		for col in range(0u, bytes_vec.len()) {
+	for row in range(0us, bytes_vec[0].len()) {
+		for col in range(0us, bytes_vec.len()) {
 			//vectors may not all be same length - as soon as we would have an index error, we've reached the end
 			if row == bytes_vec[col].len() { break; }
 			vec1d.push(bytes_vec[col][row]);
@@ -116,8 +116,8 @@ fn flatten(bytes_vec:Vec<Vec<u8>>) -> Vec<u8> {
 // revision: count+2 for letter, count+1 for other valid characters
 // revision 2: count+3 for letters, count+2 for a space, count+1 for other valid characters
 // revision 2 works!
-fn valid_bytes(byte_vec:Vec<u8>) -> uint {
-	let mut count_valid = 0u;
+fn valid_bytes(byte_vec:Vec<u8>) -> usize {
+	let mut count_valid = 0us;
 	for byte in byte_vec.iter() {
 		if ( (*byte>=65)&&(*byte<=90) ) || ( (*byte>=97)&&(*byte<=122) ) { count_valid+=3; }
 		else if *byte==32 { count_valid+=2; }
@@ -126,13 +126,13 @@ fn valid_bytes(byte_vec:Vec<u8>) -> uint {
 	count_valid
 }
 
-fn solve_keysize(input:&str, keysize:uint) -> (String, String) {
+fn solve_keysize(input:&str, keysize:usize) -> (String, String) {
 	let bytes_vec = transpose_to_bytes(input, keysize);
 	let mut best_bytes_vec:Vec<Vec<u8>> = Vec::new();
 	let mut best_keys:Vec<u8> = Vec::new();
 	//println!("Solving for keysize {}", keysize);
-	for i in range(0u, keysize) {
-		let mut max_valid_bytes = 0u;
+	for i in range(0us, keysize) {
+		let mut max_valid_bytes = 0us;
 		let mut best_key = 0u8;
 		for key in range(0u8, 128) {
 			let bytes_xor:Vec<u8> = bytes_vec[i].iter().map(|byte| {*byte^key} ).collect();
@@ -151,10 +151,10 @@ fn solve_keysize(input:&str, keysize:uint) -> (String, String) {
 }
 
 fn solve(input_str:&str) -> (String, String) {
-	let min_dists = get_min_dists(input_str.as_slice(), 40u, 40);
-	println!("checking order: {}", min_dists)
+	let min_dists = get_min_dists(input_str.as_slice(), 40us, 40);
+	println!("checking order: {:?}", min_dists);
 	let mut answer:(String, String) = ("blah".to_string(), "blah".to_string());
-	let mut max_valid_count = 0u;
+	let mut max_valid_count = 0us;
 	for dist in min_dists.iter() {
 		let result = solve_keysize(input_str, *dist);
 		let result_valid_count = valid_bytes(result.clone().1.into_bytes());

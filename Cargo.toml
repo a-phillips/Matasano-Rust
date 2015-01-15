@@ -3,3 +3,5 @@
     version = "0.0.1"
     authors = ["Andrew Phillips"]
 
+[dependencies]
+rustc-serialize = "0.2"
